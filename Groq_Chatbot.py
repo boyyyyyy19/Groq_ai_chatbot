@@ -7,7 +7,7 @@ import datetime
 class ClaudeGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("AI chatbot")
+        self.root.title("AI Chatbot")
         self.root.geometry("800x600")
         self.root.configure(bg="#1a1a1a")
 
@@ -47,7 +47,7 @@ class ClaudeGUI:
         self.prompt_label = ttk.Label(self.prompt_section, text="Enter your prompt:", style='TLabel')
         self.prompt_label.pack(anchor="w", padx=5, pady=5)
 
-        # Make text box more visible
+        # Text input for prompt
         self.prompt_entry = tk.Text(self.prompt_section,
                                   height=5,
                                   width=60,
@@ -60,10 +60,6 @@ class ClaudeGUI:
                                   borderwidth=2,
                                   relief='ridge')
         self.prompt_entry.pack(anchor="w", padx=5, pady=5)
-
-        # Add key bindings for Enter and Shift+Enter
-        self.prompt_entry.bind('<Return>', self.on_enter)
-        self.prompt_entry.bind('<Shift-Return>', self.on_shift_enter)
 
         # Model Selection Section
         self.model_section = ttk.Frame(self.main_frame, style='TFrame')
@@ -120,7 +116,7 @@ class ClaudeGUI:
         self.response_label = ttk.Label(self.response_section, text="Response:", style='TLabel')
         self.response_label.pack(anchor="w", padx=5, pady=5)
 
-        # Make text box more visible
+        # Text output for response
         self.response_text = tk.Text(self.response_section,
                                    height=15,
                                    width=60,
@@ -134,14 +130,6 @@ class ClaudeGUI:
                                    relief='ridge')
         self.response_text.pack(anchor="w", fill="both", expand=True, padx=5, pady=5)
         self.response_text.config(state="disabled")
-
-    def on_enter(self, event):
-        self.generate_response()
-        return 'break'
-
-    def on_shift_enter(self, event):
-        self.prompt_entry.insert('insert', '\n')
-        return 'break'
 
     def generate_response(self):
         try:
@@ -158,49 +146,46 @@ class ClaudeGUI:
 
             client = Groq(api_key=api_key)
 
+            # System message to guide the AI's response
             system_message = '''Answer in <thinking> and <reflection>
-You are an AI assistant designed to provide detailed, multi-perspective responses. Follow this structure:
+            You are an AI assistant designed to provide detailed, multi-perspective responses. Follow this structure:
+            1. Begin with <thinking> (invisible to user):
+               a. Analyze the question from 3 - 19 different angles
+               b. Use the least amount of chains to cover all possible approaches
+               c. For each approach:
+                  i. Create <chain1>, <chain2>, <chain3>, <chain4>, <chain5>, <chain6>, <chain7>, <chain8>, <chain9>, <chain10>, <chain11>, <chain12>, <chain13>, <chain14>, <chain15>, <chain16>, <chain17>, <chain18>, <chain19> sections
+                  ii. Develop full reasoning path for each chain
+                  iii. Include mathematical/logical steps where applicable
+                  iv. Consider opposing viewpoints in different chains
+               d. Compare chains side-by-side
+               e. Identify strengths/weaknesses of each approach
 
+            2. Include <reflection> section (invisible to user):
+               a. For each chain:
+                  i. <validate> using domain-specific criteria
+                  ii. <cross-check> with external knowledge
+                  iii. <stress-test> edge cases
+                  iv. <compare> chain outcomes
+               b. Perform error analysis across all chains
+               c. Resolve conflicts between chains
+               d. Synthesize final conclusion from best elements
 
-1. Begin with <thinking> (invisible to user):
-   a. Analyze the question from 3 - 19 different angles
-   b. Use the least amount of chains to cover all possible approaches
-   c. For each approach:
-      i. Create <chain1>, <chain2>, <chain3>, <chain4>, <chain5>, <chain6>, <chain7>, <chain8>, <chain9>, <chain10>, <chain11>, <chain12>, <chain13>, <chain14>, <chain15>, <chain16>, <chain17>, <chain18>, <chain19> sections
-      ii. Develop full reasoning path for each chain
-      iii. Include mathematical/logical steps where applicable
-      iv. Consider opposing viewpoints in different chains
-   d. Compare chains side-by-side
-   e. Identify strengths/weaknesses of each approach
+            3. Final output in <output>:
+               a. Present unified answer combining best chain insights
+               b. Acknowledge alternative approaches if relevant
+               c. Provide confidence level assessment (1-100%)
 
+            Rules:
+            - Maintain 3 distinct chains minimum
+            - Chains must represent fundamentally different approaches
+            - No chain duplication - each must have unique reasoning
+            - Tags must be on separate lines
+            - Use markdown formatting for complex elements
+            - If chains conflict, perform deeper analysis in reflection
+            - Final output must synthesize multiple chain insights
+            '''
 
-2. Include <reflection> section (invisible to user):
-   a. For each chain:
-      i. <validate> using domain-specific criteria
-      ii. <cross-check> with external knowledge
-      iii. <stress-test> edge cases
-      iv. <compare> chain outcomes
-   b. Perform error analysis across all chains
-   c. Resolve conflicts between chains
-   d. Synthesize final conclusion from best elements
-
-
-3. Final output in <output>:
-   a. Present unified answer combining best chain insights
-   b. Acknowledge alternative approaches if relevant
-   c. Provide confidence level assessment (1-100%)
-
-
-Rules:
-- Maintain 3 distinct chains minimum
-- Chains must represent fundamentally different approaches
-- No chain duplication - each must have unique reasoning
-- Tags must be on separate lines
-- Use markdown formatting for complex elements
-- If chains conflict, perform deeper analysis in reflection
-- Final output must synthesize multiple chain insights
-'''
-
+            # API call
             chat_completion = client.chat.completions.create(
                 messages=[{"role": "system", "content": system_message},
                           {"role": "user", "content": prompt}],
@@ -210,98 +195,78 @@ Rules:
 
             response = chat_completion.choices[0].message.content
 
-            # Check if the response contains code
+            # Check for code blocks in the response
             if "```" in response:
-                # Extract code content
-                lines = response.split('\n')
-                code_content = []
-                in_code_block = False
-                current_language = None
-                code_blocks = []
-
-                for line in lines:
-                    if line.strip().startswith('```'):
-                        in_code_block = not in_code_block
-                        if not in_code_block:
-                            # Determine the language
-                            if line.strip().startswith('```'):
-                                # Get the language if specified
-                                lang = line.strip().replace('```', '').strip()
-                                current_language = lang if lang else None
-                            # Reset code_content for next block
-                            code_content = []
-                    else:
-                        if in_code_block:
-                            code_content.append(line)
-                
-                # Generate filename with timestamp
-                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-                base_filename = f"generated_code_{timestamp}"
-                
-                # Save each code block with appropriate extension
-                code_blocks = []
-                in_block = False
-                current_code = []
-                current_lang = None
-                
-                for line in lines:
-                    if line.strip().startswith('```'):
-                        if in_block:
-                            # Save the current code block
-                            code_blocks.append({
-                                'lang': current_lang,
-                                'content': current_code
-                            })
-                        in_block = True
-                        # Determine the language
-                        lang = line.strip().replace('```', '').strip()
-                        current_lang = lang if lang else None
-                        current_code = []
-                    elif in_block:
-                        current_code.append(line)
-                
-                # Save the last code block
-                if current_code:
-                    code_blocks.append({
-                        'lang': current_lang,
-                        'content': current_code
-                    })
-
-                # Save each code block to file
-                for i, code_block in enumerate(code_blocks):
-                    lang = code_block['lang']
-                    content = code_block['content']
-                    
-                    # Determine file extension based on language
-                    ext = self.get_file_extension(lang)
-                    
-                    filename = f"{base_filename}_{i+1}.{ext}"
-                    counter = 1
-                    while os.path.exists(filename):
-                        filename = f"{base_filename}_{i+1}_{counter}.{ext}"
-                        counter += 1
-                    
-                    # Save to file
-                    with open(filename, 'w') as f:
-                        f.write('\n'.join(content))
-                
-                # Provide user feedback
-                messagebox.showinfo("File Saved", f"Code saved as {filename}")
-
-            # Display response as usual
-            self.response_text.config(state="normal")
-            self.response_text.delete("1.0", "end")
-            self.response_text.insert("1.0", response)
-            self.response_text.config(state="disabled")
+                self.save_code_blocks(response)
+            else:
+                # Display response if no code blocks found
+                self.response_text.config(state="normal")
+                self.response_text.delete("1.0", "end")
+                self.response_text.insert("1.0", response)
+                self.response_text.config(state="disabled")
 
         except Exception as e:
             messagebox.showerror("Error", str(e))
-    
+
+    def save_code_blocks(self, response):
+        """Extract and save code blocks from the response."""
+        lines = response.split('\n')
+        code_content = []
+        in_code_block = False
+        current_language = None
+        code_blocks = []
+
+        for line in lines:
+            stripped_line = line.strip()
+
+            # Detecting the start and end of code blocks
+            if stripped_line.startswith('```'):
+                if in_code_block:
+                    # Save previous code block
+                    code_blocks.append({'lang': current_language, 'content': code_content})
+                    code_content = []
+                in_code_block = not in_code_block
+
+                # Set the language of the code block
+                if in_code_block:
+                    current_language = stripped_line.replace('```', '').strip() or 'txt'
+            elif in_code_block:
+                # Add code inside the block
+                code_content.append(line)
+
+        # Save the last code block if valid
+        if code_content:
+            code_blocks.append({'lang': current_language, 'content': code_content})
+
+        if not code_blocks:
+            messagebox.showinfo("No Code", "No valid code blocks found in the response.")
+            return
+
+        # Generate filename with timestamp and save each code block
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        base_filename = f"generated_code_{timestamp}"
+
+        for i, code_block in enumerate(code_blocks):
+            lang = code_block['lang']
+            content = code_block['content']
+
+            # Get the file extension based on language
+            ext = self.get_file_extension(lang)
+
+            filename = f"{base_filename}_{i+1}.{ext}"
+            counter = 1
+            while os.path.exists(filename):
+                filename = f"{base_filename}_{i+1}_{counter}.{ext}"
+                counter += 1
+
+            # Save to file
+            with open(filename, 'w') as f:
+                f.write('\n'.join(content))
+
+            messagebox.showinfo("File Saved", f"Code saved as {filename}")
+
     def get_file_extension(self, language):
-        # If the language is None or empty, default to 'txt'
-        if not language:
-            return 'txt'
-        
+        """Map language to appropriate file extension."""
         ext_map = {
             'python': 'py',
             'java': 'java',
@@ -319,10 +284,9 @@ Rules:
             'html': 'html',
             'css': 'css',
             'sql': 'sql',
-            'bash': 'sh'
+            'bash': 'sh',
+            'txt': 'txt'
         }
-        
-        # If the language is not in the map, default to 'txt'
         return ext_map.get(language.lower(), 'txt')
 
 if __name__ == "__main__":
