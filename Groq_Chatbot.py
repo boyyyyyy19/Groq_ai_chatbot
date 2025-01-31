@@ -2,6 +2,7 @@ import os
 import tkinter as tk
 from tkinter import ttk, messagebox
 from groq import Groq
+import datetime
 
 class ClaudeGUI:
     def __init__(self, root):
@@ -211,6 +212,85 @@ Rules:
 
             response = chat_completion.choices[0].message.content
 
+            # Check if the response contains code
+            if "```" in response:
+                # Extract code content
+                lines = response.split('\n')
+                code_content = []
+                in_code_block = False
+                current_language = None
+                code_blocks = []
+
+                for line in lines:
+                    if line.strip().startswith('```'):
+                        in_code_block = not in_code_block
+                        if not in_code_block:
+                            # Determine the language
+                            if line.strip().startswith('```'):
+                                # Get the language if specified
+                                lang = line.strip().replace('```', '').strip()
+                                current_language = lang if lang else None
+                            # Reset code_content for next block
+                            code_content = []
+                    else:
+                        if in_code_block:
+                            code_content.append(line)
+                
+                # Generate filename with timestamp
+                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                base_filename = f"generated_code_{timestamp}"
+                
+                # Save each code block with appropriate extension
+                code_blocks = []
+                in_block = False
+                current_code = []
+                current_lang = None
+                
+                for line in lines:
+                    if line.strip().startswith('```'):
+                        if in_block:
+                            # Save the current code block
+                            code_blocks.append({
+                                'lang': current_lang,
+                                'content': current_code
+                            })
+                        in_block = True
+                        # Determine the language
+                        lang = line.strip().replace('```', '').strip()
+                        current_lang = lang if lang else None
+                        current_code = []
+                    elif in_block:
+                        current_code.append(line)
+                
+                # Save the last code block
+                if current_code:
+                    code_blocks.append({
+                        'lang': current_lang,
+                        'content': current_code
+                    })
+
+                # Save each code block to file
+                for i, code_block in enumerate(code_blocks):
+                    lang = code_block['lang']
+                    content = code_block['content']
+                    
+                    # Determine file extension based on language
+                    ext = self.get_file_extension(lang)
+                    
+                    filename = f"{base_filename}_{i+1}.{ext}"
+                    counter = 1
+                    while os.path.exists(filename):
+                        filename = f"{base_filename}_{i+1}_{counter}.{ext}"
+                        counter += 1
+                    
+                    # Save to file
+                    with open(filename, 'w') as f:
+                        f.write('\n'.join(content))
+                
+                # Provide user feedback
+                messagebox.showinfo("File Saved", f"Code saved as {filename}")
+
+            # Display response as usual
             self.response_text.config(state="normal")
             self.response_text.delete("1.0", "end")
             self.response_text.insert("1.0", response)
@@ -218,6 +298,28 @@ Rules:
 
         except Exception as e:
             messagebox.showerror("Error", str(e))
+    
+    def get_file_extension(self, language):
+        ext_map = {
+            'python': 'py',
+            'java': 'java',
+            'javascript': 'js',
+            'csharp': 'cs',
+            'cpp': 'cpp',
+            'c': 'c',
+            'ruby': 'rb',
+            'swift': 'swift',
+            'php': 'php',
+            'go': 'go',
+            'kotlin': 'kt',
+            'rust': 'rs',
+            'typescript': 'ts',
+            'html': 'html',
+            'css': 'css',
+            'sql': 'sql',
+            'bash': 'sh'
+        }
+        return ext_map.get(language.lower(), 'txt')
 
 if __name__ == "__main__":
     root = tk.Tk()
