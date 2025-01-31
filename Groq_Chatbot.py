@@ -202,10 +202,8 @@ Rules:
 '''
 
             chat_completion = client.chat.completions.create(
-                messages=[
-                    {"role": "system", "content": system_message},
-                    {"role": "user", "content": prompt},
-                ],
+                messages=[{"role": "system", "content": system_message},
+                          {"role": "user", "content": prompt}],
                 model=model,
                 temperature=temperature
             )
@@ -300,6 +298,10 @@ Rules:
             messagebox.showerror("Error", str(e))
     
     def get_file_extension(self, language):
+        # If the language is None or empty, default to 'txt'
+        if not language:
+            return 'txt'
+        
         ext_map = {
             'python': 'py',
             'java': 'java',
@@ -319,6 +321,8 @@ Rules:
             'sql': 'sql',
             'bash': 'sh'
         }
+        
+        # If the language is not in the map, default to 'txt'
         return ext_map.get(language.lower(), 'txt')
 
 if __name__ == "__main__":
